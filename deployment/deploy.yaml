@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-flask
+  labels:
+    istio-injection: enabled
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: http-gateway
+  namespace: test-flask
+spec:
+  selector:
+    istio: ingressgateway # use istio default controller
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*"
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: test-flask
+  namespace: test-flask
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - http-gateway
+  http:
+  -  route:
+     - destination:
+         host: test-flask.test-flask.svc.cluster.local
+         port:
+           number: 3000
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-flask
+  namespace: test-flask
+  labels:
+    app: test-flask
+spec:
+  ports:
+  - name: http
+    port: 3000  
+  selector:
+    app: test-flask
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: test-flask
+    version: v2
+  name: test-flask
+  namespace: test-flask
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-flask
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: test-flask
+        version: v2
+    spec:
+      containers:
+      - image: ramandas/sampleflask:1
+        imagePullPolicy: IfNotPresent
+        name: test-flask        
+        ports:
+        - containerPort: 3000
+          name: http
+          protocol: TCP        
+        securityContext:
+          privileged: false
